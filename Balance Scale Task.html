@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Balance Scale Task</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1c1c1e;
+    --paper: #f5f0e8;
+    --cream: #ede8dc;
+    --rule: #c8b89a;
+    --wood: #8b5e3c;
+    --wood-light: #b07d52;
+    --wood-dark: #5c3d20;
+    --weight-fill: #2d4a7a;
+    --weight-stroke: #1a2d4a;
+    --gold: #c9972a;
+    --green: #2d6b4a;
+    --red: #8b2020;
+    --stage1: #7b3f00;
+    --stage2: #1a4a6b;
+    --stage3: #4a1a6b;
+    --stage4: #1a6b3a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Source Serif 4', Georgia, serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* Subtle ruled paper texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      transparent,
+      transparent 31px,
+      var(--rule) 31px,
+      var(--rule) 32px
+    );
+    opacity: 0.18;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 36px;
+    border-bottom: 2px solid var(--rule);
+    padding-bottom: 20px;
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.4em;
+    font-weight: 900;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+
+  header p {
+    margin-top: 8px;
+    font-size: 1em;
+    color: #555;
+    font-style: italic;
+    font-weight: 300;
+  }
+
+  /* Progress */
+  .progress-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    font-size: 0.85em;
+    color: #666;
+    font-style: italic;
+  }
+
+  .progress-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid #aaa;
+    background: transparent;
+    transition: background 0.3s;
+  }
+  .dot.done { background: var(--ink); border-color: var(--ink); }
+  .dot.current { background: var(--gold); border-color: var(--gold); }
+
+  /* Scale SVG area */
+  .scale-area {
+    background: var(--cream);
+    border: 1.5px solid var(--rule);
+    border-radius: 4px;
+    padding: 10px 0 0;
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  #scaleSvg {
+    display: block;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 700px;
+    height: 260px;
+  }
+
+  /* Problem description */
+  .problem-desc {
+    background: white;
+    border-left: 4px solid var(--gold);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 0.95em;
+    line-height: 1.6;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .problem-desc strong { color: var(--wood-dark); }
+
+  /* Prediction buttons */
+  .prediction-section {
+    margin-bottom: 20px;
+  }
+
+  .prediction-section label {
+    display: block;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1em;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .pred-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .pred-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 12px 16px;
+    border: 2px solid var(--rule);
+    background: white;
+    border-radius: 3px;
+    font-family: 'Source Serif 4', serif;
+    font-size: 0.95em;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    color: var(--ink);
+  }
+
+  .pred-btn:hover { background: var(--cream); border-color: var(--wood-light); }
+  .pred-btn.selected { background: var(--ink); color: white; border-color: var(--ink); }
+  .pred-btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* Submit */
+  .submit-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--wood);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1em;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: background 0.15s;
+    margin-bottom: 20px;
+  }
+  .submit-btn:hover { background: var(--wood-dark); }
+  .submit-btn:disabled { background: #aaa; cursor: default; }
+
+  /* Feedback panel */
+  .feedback {
+    display: none;
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    border: 1.5px solid;
+    animation: fadeIn 0.4s ease;
+  }
+
+  .feedback.correct {
+    background: #f0f8f2;
+    border-color: var(--green);
+  }
+
+  .feedback.incorrect {
+    background: #fdf5f5;
+    border-color: var(--red);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .feedback-verdict {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.15em;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .feedback.correct .feedback-verdict { color: var(--green); }
+  .feedback.incorrect .feedback-verdict { color: var(--red); }
+
+  .feedback-actual {
+    font-size: 0.9em;
+    color: #444;
+    margin-bottom: 14px;
+    font-style: italic;
+  }
+
+  /* Stage commentary */
+  .stage-box {
+    border-radius: 3px;
+    padding: 14px 16px;
+    margin-top: 12px;
+  }
+
+  .stage-box h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1em;
+    margin-bottom: 6px;
+  }
+
+  .stage-box p {
+    font-size: 0.88em;
+    line-height: 1.65;
+    color: #333;
+  }
+
+  .stage-box.rule1 { background: #fdf6ee; border: 1px solid #d4956a; }
+  .stage-box.rule1 h3 { color: var(--stage1); }
+  .stage-box.rule2 { background: #eef3fa; border: 1px solid #6a8fc4; }
+  .stage-box.rule2 h3 { color: var(--stage2); }
+  .stage-box.rule3 { background: #f5eefa; border: 1px solid #9c6ac4; }
+  .stage-box.rule3 h3 { color: var(--stage3); }
+  .stage-box.rule4 { background: #eef8f2; border: 1px solid #5aaa7a; }
+  .stage-box.rule4 h3 { color: var(--stage4); }
+
+  /* Torque info */
+  .torque-info {
+    font-family: 'Source Serif 4', serif;
+    font-size: 0.82em;
+    color: #666;
+    margin-top: 8px;
+    font-style: italic;
+  }
+
+  /* Next button */
+  .next-btn {
+    width: 100%;
+    padding: 13px;
+    background: transparent;
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 14px;
+  }
+  .next-btn:hover { background: var(--ink); color: white; }
+
+  /* Summary screen */
+  .summary {
+    display: none;
+    animation: fadeIn 0.5s ease;
+  }
+
+  .summary h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8em;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .summary .score-line {
+    text-align: center;
+    font-size: 1.1em;
+    color: #555;
+    margin-bottom: 28px;
+    font-style: italic;
+  }
+
+  .rule-summary {
+    border: 1.5px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .rule-summary-header {
+    background: var(--ink);
+    color: white;
+    padding: 12px 20px;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1em;
+  }
+
+  .rule-entry {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.9em;
+    line-height: 1.6;
+  }
+  .rule-entry:last-child { border-bottom: none; }
+  .rule-entry h4 { font-family: 'Playfair Display', serif; margin-bottom: 4px; font-size: 1em; }
+
+  .rule-entry.rule1 { border-left: 4px solid #d4956a; }
+  .rule-entry.rule2 { border-left: 4px solid #6a8fc4; }
+  .rule-entry.rule3 { border-left: 4px solid #9c6ac4; }
+  .rule-entry.rule4 { border-left: 4px solid #5aaa7a; }
+
+  .restart-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--wood);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .restart-btn:hover { background: var(--wood-dark); }
+
+  /* Responsive */
+  @media (max-width: 500px) {
+    header h1 { font-size: 1.8em; }
+    .pred-buttons { flex-direction: column; }
+    #scaleSvg { height: 200px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>The Balance Scale Task</h1>
+    <p>A window into cognitive development — after Siegler (1976) &amp; Piaget</p>
+  </header>
+
+  <!-- Main task -->
+  <div id="taskArea">
+    <div class="progress-row">
+      <span id="trialLabel">Problem 1 of 8</span>
+      <div class="progress-dots" id="progressDots"></div>
+    </div>
+
+    <div class="scale-area">
+      <svg id="scaleSvg" viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="woodGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#b07d52"/>
+            <stop offset="100%" stop-color="#7a4f28"/>
+          </linearGradient>
+          <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#3a5f9a"/>
+            <stop offset="100%" stop-color="#1a2d5a"/>
+          </linearGradient>
+          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.2"/>
+          </filter>
+        </defs>
+
+        <!-- Base -->
+        <rect x="290" y="230" width="120" height="14" rx="3" fill="url(#woodGrad)" filter="url(#shadow)"/>
+        <!-- Fulcrum triangle -->
+        <polygon points="350,140 330,230 370,230" fill="url(#woodGrad)" filter="url(#shadow)"/>
+
+        <!-- Beam (will be rotated by JS) -->
+        <g id="beam" transform-origin="350 140">
+          <rect id="beamRect" x="70" y="136" width="560" height="10" rx="5" fill="url(#woodGrad)" filter="url(#shadow)"/>
+          <!-- Pivot circle -->
+          <circle cx="350" cy="141" r="7" fill="#5c3d20" stroke="#3a2010" stroke-width="1.5"/>
+
+          <!-- Pans and weights drawn dynamically by JS -->
+          <g id="leftWeights"></g>
+          <g id="rightWeights"></g>
+        </g>
+
+        <!-- Peg markers on beam (positions 1-4 each side) -->
+        <!-- Left pegs: positions at x = 130,190,250,310 from center 350 => distances 4,3,2,1 -->
+        <!-- Right pegs: positions at x = 390,450,510,570 -->
+        <g id="pegLabels" opacity="0.55" font-family="'Source Serif 4',serif" font-size="11" fill="#5c3d20" text-anchor="middle">
+          <text x="130" y="133">4</text>
+          <text x="190" y="133">3</text>
+          <text x="250" y="133">2</text>
+          <text x="310" y="133">1</text>
+          <text x="390" y="133">1</text>
+          <text x="450" y="133">2</text>
+          <text x="510" y="133">3</text>
+          <text x="570" y="133">4</text>
+          <text x="350" y="128" font-size="9" opacity="0.7">← distance →</text>
+        </g>
+
+        <!-- Side labels -->
+        <text x="130" y="258" font-family="'Playfair Display',serif" font-size="13" fill="#5c3d20" text-anchor="middle" font-weight="700">LEFT</text>
+        <text x="570" y="258" font-family="'Playfair Display',serif" font-size="13" fill="#5c3d20" text-anchor="middle" font-weight="700">RIGHT</text>
+      </svg>
+    </div>
+
+    <div class="problem-desc" id="problemDesc"></div>
+
+    <div class="prediction-section">
+      <label>What will happen when the scale is released?</label>
+      <div class="pred-buttons">
+        <button class="pred-btn" data-val="left" onclick="selectPred(this)">⬇ Left side goes down</button>
+        <button class="pred-btn" data-val="balance" onclick="selectPred(this)">⇌ It balances</button>
+        <button class="pred-btn" data-val="right" onclick="selectPred(this)">Right side goes down ⬇</button>
+      </div>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitAnswer()" disabled>Submit Prediction</button>
+
+    <div class="feedback" id="feedback">
+      <div class="feedback-verdict" id="feedbackVerdict"></div>
+      <div class="feedback-actual" id="feedbackActual"></div>
+      <div id="stageBox"></div>
+      <div class="torque-info" id="torqueInfo"></div>
+      <button class="next-btn" id="nextBtn" onclick="nextTrial()">Next problem →</button>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary" id="summaryArea">
+    <h2>Summary</h2>
+    <p class="score-line" id="scoreLine"></p>
+
+    <div class="rule-summary">
+      <div class="rule-summary-header">Siegler's Four Rules — a developmental ladder</div>
+      <div class="rule-entry rule1">
+        <h4>Rule I — Weight only (Early Concrete Operational, ~7–8 yrs)</h4>
+        <p>The child considers only the number of weights. If one side has more weights, that side goes down. Distance from the fulcrum is completely ignored. A child using Rule I will correctly solve weight problems but fail distance and conflict problems.</p>
+      </div>
+      <div class="rule-entry rule2">
+        <h4>Rule II — Weight first, distance as tiebreaker (Late Concrete Operational, ~9–10 yrs)</h4>
+        <p>Weight is still primary. But when weights are equal, the child now uses distance to decide. Progress — but they still fail conflict items where the heavier side is closer to the fulcrum.</p>
+      </div>
+      <div class="rule-entry rule3">
+        <h4>Rule III — Both dimensions, no integration (Transitional / Early Formal, ~11–13 yrs)</h4>
+        <p>The child considers both weight and distance, but cannot multiply them together. On conflict problems (where one side wins on weight, the other on distance), they muddle through or guess. This is where most adults without physics training actually sit.</p>
+      </div>
+      <div class="rule-entry rule4">
+        <h4>Rule IV — Torque (Formal Operational, ~14+ yrs / with instruction)</h4>
+        <p>The child — now arguably an adolescent — computes torque: weight × distance on each side. The side with greater torque descends. This requires abstract proportional reasoning, the hallmark of formal operations. Many adults never reach this spontaneously.</p>
+      </div>
+    </div>
+
+    <div class="rule-summary" style="margin-bottom:24px">
+      <div class="rule-summary-header">The Piaget connection</div>
+      <div class="rule-entry" style="border-left: 4px solid var(--gold);">
+        <p>This task beautifully operationalises the concrete–formal transition. Concrete operational thinkers can handle centration on one dimension (weight) or even two separately — but they cannot coordinate and integrate them multiplicatively. That integration — weighing and distance simultaneously as a ratio — requires the hypothetico-deductive, proportional reasoning of formal operations. Siegler's rule model also shows that development is more <em>gradual and staged within stages</em> than Piaget's stage descriptions imply, which became an important neo-Piagetian critique.</p>
+      </div>
+    </div>
+
+    <div style="background: white; border: 1.5px solid var(--rule); border-radius: 4px; padding: 20px 24px; margin-bottom: 24px; text-align: center;">
+      <p style="font-family: 'Playfair Display', serif; font-size: 1.2em; font-weight: 700; margin-bottom: 8px;">Thanks for trying the Balance Scale Task!</p>
+      <p style="font-size: 0.92em; color: #555; line-height: 1.7; font-style: italic;">
+        This task has been used since the 1970s to reveal how children — and adults — reason about physical cause and effect. Most people find the conflict problems surprisingly hard, which is itself an important lesson: formal operational reasoning is not as automatic as we might assume, even in adulthood. The next time you see a see-saw, you'll think about torque differently.
+      </p>
+    </div>
+    <button class="restart-btn" onclick="restartTask()">Try again</button>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// TRIAL DEFINITIONS
+// Each trial: leftWeights, leftDist, rightWeights, rightDist
+// Type: 'weight'(only weight differs), 'distance'(only dist differs),
+//       'conflict'(one side heavier, other side farther), 'balance'
+// ============================================================
+const trials = [
+  {
+    leftW: 3, leftD: 2, rightW: 1, rightD: 2,
+    type: 'weight',
+    desc: 'Both sides have weights at the <strong>same distance</strong> (position 2) from the centre. The left pan has <strong>3 weights</strong>, the right pan has <strong>1 weight</strong>.',
+    hint: 'Only weight differs here — distance is equal on both sides.'
+  },
+  {
+    leftW: 2, leftD: 3, rightW: 2, rightD: 1,
+    type: 'distance',
+    desc: 'Both sides have <strong>2 weights</strong>. But the left weights are at position <strong>3</strong> from the centre, while the right weights are at position <strong>1</strong>.',
+    hint: 'Only distance differs here — weight is equal on both sides.'
+  },
+  {
+    leftW: 2, leftD: 2, rightW: 2, rightD: 2,
+    type: 'balance',
+    desc: 'Both sides have <strong>2 weights</strong> at position <strong>2</strong>.',
+    hint: 'Everything is perfectly symmetrical.'
+  },
+  {
+    leftW: 3, leftD: 1, rightW: 1, rightD: 3,
+    type: 'conflict',
+    desc: 'The left pan has <strong>3 weights</strong> at position <strong>1</strong> (close to centre). The right pan has <strong>1 weight</strong> at position <strong>3</strong> (far from centre).',
+    hint: 'This is a conflict problem — more weight on one side, greater distance on the other. Left torque = 3×1 = 3. Right torque = 1×3 = 3.'
+  },
+  {
+    leftW: 1, leftD: 4, rightW: 2, rightD: 2,
+    type: 'conflict',
+    desc: 'The left pan has <strong>1 weight</strong> at position <strong>4</strong> (far from centre). The right pan has <strong>2 weights</strong> at position <strong>2</strong>.',
+    hint: 'Conflict problem — the lighter side is farther away. Left torque = 1×4 = 4. Right torque = 2×2 = 4.'
+  },
+  {
+    leftW: 4, leftD: 1, rightW: 2, rightD: 3,
+    type: 'conflict',
+    desc: 'Left pan: <strong>4 weights</strong> at position <strong>1</strong>. Right pan: <strong>2 weights</strong> at position <strong>3</strong>.',
+    hint: 'Conflict: more weights on the left, but farther distance on the right. Left torque = 4×1 = 4. Right torque = 2×3 = 6.'
+  },
+  {
+    leftW: 1, leftD: 1, rightW: 1, rightD: 1,
+    type: 'balance',
+    desc: 'Both sides have <strong>1 weight</strong> at position <strong>1</strong> (closest to centre).',
+    hint: 'Completely symmetrical — simplest possible case.'
+  },
+  {
+    leftW: 3, leftD: 3, rightW: 4, rightD: 2,
+    type: 'conflict',
+    desc: 'Left pan: <strong>3 weights</strong> at position <strong>3</strong>. Right pan: <strong>4 weights</strong> at position <strong>2</strong>.',
+    hint: 'Conflict: more weights on the right, greater distance on the left. Left torque = 3×3 = 9. Right torque = 4×2 = 8.'
+  }
+];
+
+// Positions on the SVG beam
+// Centre of beam at x=350. Each position unit = 60px.
+// Left: pos 1=310, 2=250, 3=190, 4=130
+// Right: pos 1=390, 2=450, 3=510, 4=570
+function xForSide(side, dist) {
+  if (side === 'left')  return 370 - dist * 60;
+  else                   return 330 + dist * 60;
+}
+
+// Compute correct answer
+function correctAnswer(t) {
+  const leftTorque  = t.leftW  * t.leftD;
+  const rightTorque = t.rightW * t.rightD;
+  if (leftTorque  > rightTorque) return 'left';
+  if (rightTorque > leftTorque)  return 'right';
+  return 'balance';
+}
+
+// Determine which rule(s) a wrong answer suggests
+function getRuleCommentary(trial, prediction, correct) {
+  const lT = trial.leftW * trial.leftD;
+  const rT = trial.rightW * trial.rightD;
+
+  if (prediction === correct) {
+    // Got it right — explain what rule could still produce this
+    if (trial.type === 'weight') {
+      return {cls:'rule1', title:'Rule I thinking could get this right',
+        text:'This is a weight problem — both weights are at the same distance, so any rule that attends to weight will give the right answer. Even a Rule I child would succeed here. Getting it right doesn\'t tell us much yet about which rule you\'re using.'};
+    }
+    if (trial.type === 'distance') {
+      return {cls:'rule2', title:'This requires at least Rule II',
+        text:'Weights are equal, so weight alone won\'t help. You need to use distance — this is the key transition from Rule I to Rule II. A Rule II or higher child handles this correctly.'};
+    }
+    if (trial.type === 'balance' && trial.leftW === trial.rightW && trial.leftD === trial.rightD) {
+      return {cls:'rule1', title:'Symmetry is visible to all rules',
+        text:'This perfectly balanced problem is solvable even at Rule I — both weight and distance are equal, so any rule produces the correct answer.'};
+    }
+    if (trial.type === 'conflict') {
+      // If torques are equal (balance)
+      if (lT === rT) {
+        return {cls:'rule4', title:'Rule IV reasoning — torque calculation',
+          text:`Impressive! This is a conflict-balance problem — one side heavier, the other farther away, but the torques are exactly equal (${trial.leftW}×${trial.leftD} = ${trial.rightW}×${trial.rightD} = ${lT}). Only Rule IV reasoning (weight × distance on each side) reliably identifies these. Even many adults get this wrong.`};
+      }
+      return {cls:'rule4', title:'Rule IV reasoning — torque calculation',
+        text:`This is a conflict problem and you got it right. The only reliable path to the correct answer is computing torque: left = ${trial.leftW}×${trial.leftD} = ${lT}, right = ${trial.rightW}×${trial.rightD} = ${rT}. This is formal operational, proportional reasoning — Rule IV.`};
+    }
+  }
+
+  // Wrong answers
+  if (trial.type === 'weight') {
+    return {cls:'rule1', title:'Unexpected on a weight problem',
+      text:`This is a weight-only problem (distance is equal on both sides), so most rules give the correct answer. Getting it wrong is unusual — perhaps a slip rather than a systematic rule.`};
+  }
+
+  if (trial.type === 'distance') {
+    if (prediction !== 'balance') {
+      return {cls:'rule1', title:'Rule I — weight only',
+        text:`Weights are equal on both sides, so a Rule I child would say "balance" rather than the side you chose. Responding based only on weight (and ignoring the unequal distances) is characteristic of Rule I — the earliest concrete operational stage. Rule I children centrate on weight and cannot yet coordinate distance.`};
+    }
+  }
+
+  if (trial.type === 'conflict') {
+    // If they chose the heavier side (and it was wrong)
+    const heavierSide = trial.leftW > trial.rightW ? 'left' : trial.rightW > trial.leftW ? 'right' : null;
+    if (prediction === heavierSide) {
+      return {cls:'rule1', title:'Rule I — weight only',
+        text:`You chose the heavier side, ignoring distance. This is classic Rule I thinking — attending only to weight. A young concrete operational child (around 7–8 years) typically shows this pattern: they know weight matters but haven't yet grasped that distance from the fulcrum is also relevant.`};
+    }
+    const fartherSide = trial.leftD > trial.rightD ? 'left' : trial.rightD > trial.leftD ? 'right' : null;
+    if (prediction === fartherSide) {
+      return {cls:'rule2', title:'Possibly Rule II or III — distance override',
+        text:`You chose the side with greater distance, even though it had fewer weights. This might reflect Rule II or III reasoning — you're using distance as a factor. But on conflict problems, you need to multiply weight × distance on each side to get the right answer, which requires Rule IV.`};
+    }
+    if (prediction === 'balance') {
+      return {cls:'rule3', title:'Rule III — muddle on conflict problems',
+        text:`You predicted balance on a conflict problem where one side actually tips. This is a classic Rule III response — the child (or adult) sees that both weight and distance are relevant, becomes uncertain when they conflict, and defaults to "balance" as a safe guess. Rule III is where most adults without physics training operate.`};
+    }
+  }
+
+  return {cls:'rule3', title:'Reasoning under uncertainty',
+    text:'This problem involves conflicting cues, which creates difficulty at all but the most advanced stage of reasoning.'};
+}
+
+// ============================================================
+let current = 0;
+let prediction = null;
+let score = 0;
+let answered = false;
+
+function init() {
+  buildDots();
+  loadTrial();
+}
+
+function buildDots() {
+  const container = document.getElementById('progressDots');
+  container.innerHTML = '';
+  trials.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' current' : '');
+    d.id = 'dot' + i;
+    container.appendChild(d);
+  });
+}
+
+function updateDots() {
+  trials.forEach((_, i) => {
+    const d = document.getElementById('dot' + i);
+    d.className = 'dot';
+    if (i < current) d.classList.add('done');
+    else if (i === current) d.classList.add('current');
+  });
+}
+
+function loadTrial() {
+  if (current >= trials.length) { showSummary(); return; }
+  const t = trials[current];
+  prediction = null;
+  answered = false;
+
+  document.getElementById('trialLabel').textContent = `Problem ${current+1} of ${trials.length}`;
+  document.getElementById('problemDesc').innerHTML = t.desc;
+  document.getElementById('feedback').style.display = 'none';
+
+  // Reset buttons
+  document.querySelectorAll('.pred-btn').forEach(b => {
+    b.classList.remove('selected');
+    b.disabled = false;
+  });
+  document.getElementById('submitBtn').disabled = true;
+  updateDots();
+  drawScale(t, 0); // Start level
+}
+
+function drawScale(t, tiltDeg) {
+  const beam = document.getElementById('beam');
+  beam.setAttribute('transform', `rotate(${tiltDeg}, 350, 141)`);
+
+  // Draw weights
+  drawWeights('left',  t.leftW,  t.leftD);
+  drawWeights('right', t.rightW, t.rightD);
+}
+
+function drawWeights(side, count, dist) {
+  const g = document.getElementById(side + 'Weights');
+  g.innerHTML = '';
+
+  const cx = xForSide(side, dist);
+  const chainTop = 146;   // bottom of beam
+  const chainBottom = 195; // top of pan
+  const panH = 8;
+  const panW = 70;
+  const wH = 16;
+  const wW = 22;
+
+  // Draw chain
+  const chain = document.createElementNS('http://www.w3.org/2000/svg','line');
+  chain.setAttribute('x1', cx); chain.setAttribute('y1', chainTop);
+  chain.setAttribute('x2', cx); chain.setAttribute('y2', chainBottom);
+  chain.setAttribute('stroke', '#5c3d20'); chain.setAttribute('stroke-width', '2');
+  g.appendChild(chain);
+
+  // Draw pan
+  const pan = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  pan.setAttribute('x', cx - panW/2);
+  pan.setAttribute('y', chainBottom);
+  pan.setAttribute('width', panW);
+  pan.setAttribute('height', panH);
+  pan.setAttribute('rx', 3);
+  pan.setAttribute('fill', 'url(#woodGrad)');
+  pan.setAttribute('filter', 'url(#shadow)');
+  g.appendChild(pan);
+
+  // Draw weights sitting on pan, stacking upward
+  const panSurface = chainBottom; // top edge of pan = surface weights sit on
+  for (let i = 0; i < count; i++) {
+    const y = panSurface - wH - i * (wH + 2);
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x', cx - wW/2);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', wW);
+    rect.setAttribute('height', wH);
+    rect.setAttribute('rx', 3);
+    rect.setAttribute('fill', 'url(#weightGrad)');
+    rect.setAttribute('stroke', '#1a2d4a');
+    rect.setAttribute('stroke-width', '1');
+    rect.setAttribute('filter', 'url(#shadow)');
+    g.appendChild(rect);
+
+    // Weight number label
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x', cx);
+    txt.setAttribute('y', y + wH - 4);
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('font-size', '9');
+    txt.setAttribute('fill', '#a8c4f0');
+    txt.setAttribute('font-family', "'Source Serif 4', serif");
+    txt.textContent = i + 1;
+    g.appendChild(txt);
+  }
+}
+
+function animateTilt(targetDeg) {
+  const t = trials[current];
+  const beam = document.getElementById('beam');
+  let start = null;
+  const startDeg = 0;
+  const duration = 600;
+
+  function step(ts) {
+    if (!start) start = ts;
+    const progress = Math.min((ts - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const deg = startDeg + (targetDeg - startDeg) * ease;
+    beam.setAttribute('transform', `rotate(${deg}, 350, 141)`);
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function selectPred(btn) {
+  if (answered) return;
+  document.querySelectorAll('.pred-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  prediction = btn.dataset.val;
+  document.getElementById('submitBtn').disabled = false;
+}
+
+function submitAnswer() {
+  if (!prediction || answered) return;
+  answered = true;
+
+  const t = trials[current];
+  const correct = correctAnswer(t);
+  const isCorrect = prediction === correct;
+  if (isCorrect) score++;
+
+  // Disable buttons
+  document.querySelectorAll('.pred-btn').forEach(b => b.disabled = true);
+  document.getElementById('submitBtn').disabled = true;
+
+  // Tilt animation
+  const lT = t.leftW * t.leftD;
+  const rT = t.rightW * t.rightD;
+  let tiltDeg = 0;
+  if (lT > rT) tiltDeg = -12;
+  else if (rT > lT) tiltDeg = 12;
+  animateTilt(tiltDeg);
+
+  // Feedback
+  const fb = document.getElementById('feedback');
+  const verdict = document.getElementById('feedbackVerdict');
+  const actual = document.getElementById('feedbackActual');
+  const stageBox = document.getElementById('stageBox');
+  const torqueInfo = document.getElementById('torqueInfo');
+
+  fb.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
+  verdict.textContent = isCorrect ? '✓ Correct!' : '✗ Not quite.';
+
+  const answerText = { left: 'the left side tips down', balance: 'the scale balances', right: 'the right side tips down' };
+  actual.textContent = `What actually happens: ${answerText[correct]}.`;
+
+  const commentary = getRuleCommentary(t, prediction, correct);
+  stageBox.innerHTML = `<div class="stage-box ${commentary.cls}"><h3>${commentary.title}</h3><p>${commentary.text}</p></div>`;
+
+  const lTorque = t.leftW * t.leftD;
+  const rTorque = t.rightW * t.rightD;
+  torqueInfo.textContent = `Torque check: Left = ${t.leftW} weights × distance ${t.leftD} = ${lTorque}. Right = ${t.rightW} weights × distance ${t.rightD} = ${rTorque}.`;
+
+  fb.style.display = 'block';
+
+  // Change Next button text on last trial
+  if (current === trials.length - 1) {
+    document.getElementById('nextBtn').textContent = 'See summary →';
+  }
+}
+
+function nextTrial() {
+  current++;
+  loadTrial();
+}
+
+function showSummary() {
+  document.getElementById('taskArea').style.display = 'none';
+  const s = document.getElementById('summaryArea');
+  s.style.display = 'block';
+  document.getElementById('scoreLine').textContent =
+    `You got ${score} out of ${trials.length} correct.`;
+}
+
+function restartTask() {
+  current = 0; score = 0; prediction = null; answered = false;
+  document.getElementById('summaryArea').style.display = 'none';
+  document.getElementById('taskArea').style.display = 'block';
+  buildDots();
+  loadTrial();
+}
+
+init();
+</script>
+</body>
+</html>
