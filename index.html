@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simon Task Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      width: 100%;
+      height: 100vh;
+      padding: 40px;
+    }
+    .screen.active { display: flex; }
+
+    h1 { font-size: 2.2em; margin-bottom: 0.4em; color: #a8d8ea; }
+    h2 { font-size: 1.6em; margin-bottom: 0.6em; color: #a8d8ea; }
+    p  { font-size: 1.15em; line-height: 1.7; max-width: 560px; color: #ccc; }
+    .small { font-size: 0.95em; color: #aaa; margin-top: 8px; }
+
+    .key-demo {
+      display: flex;
+      gap: 60px;
+      margin: 30px 0;
+      align-items: center;
+      justify-content: center;
+    }
+    .key-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .key-circle {
+      width: 70px; height: 70px;
+      border-radius: 50%;
+    }
+    .key-circle.red  { background: #e63946; box-shadow: 0 0 20px #e6394680; }
+    .key-circle.blue { background: #457b9d; box-shadow: 0 0 20px #457b9d80; }
+    .key-label {
+      font-size: 1.3em; font-weight: bold;
+      background: #333;
+      border: 2px solid #666;
+      border-radius: 8px;
+      padding: 8px 18px;
+      letter-spacing: 1px;
+    }
+    .key-text { font-size: 0.95em; color: #aaa; }
+
+    .btn {
+      margin-top: 32px;
+      padding: 14px 40px;
+      font-size: 1.15em;
+      background: #a8d8ea;
+      color: #1a1a2e;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: transform 0.1s, background 0.2s;
+    }
+    .btn:hover { background: #c8eaf5; transform: scale(1.04); }
+
+    /* Trial screen */
+    #trial-screen {
+      position: relative;
+    }
+    #fixation {
+      font-size: 3em;
+      color: #888;
+      letter-spacing: 2px;
+    }
+    #stimulus-area {
+      position: relative;
+      width: 700px;
+      max-width: 95vw;
+      height: 160px;
+    }
+    #stimulus {
+      position: absolute;
+      width: 90px; height: 90px;
+      border-radius: 50%;
+      top: 50%;
+      transform: translateY(-50%);
+      transition: none;
+    }
+    #stimulus.left  { left: 30px; }
+    #stimulus.right { right: 30px; }
+    #stimulus.red   { background: #e63946; box-shadow: 0 0 30px #e6394699; }
+    #stimulus.blue  { background: #457b9d; box-shadow: 0 0 30px #457b9d99; }
+
+    #feedback-msg {
+      font-size: 1.5em;
+      margin-top: 10px;
+      height: 2em;
+      font-weight: bold;
+    }
+    #feedback-msg.correct { color: #57cc99; }
+    #feedback-msg.wrong   { color: #e63946; }
+    #feedback-msg.slow    { color: #f4a261; }
+
+    #progress-bar-wrap {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 6px;
+      background: #333;
+    }
+    #progress-bar {
+      height: 100%;
+      background: #a8d8ea;
+      transition: width 0.3s;
+    }
+    #trial-counter {
+      position: fixed;
+      top: 14px; right: 20px;
+      font-size: 0.9em;
+      color: #777;
+    }
+    #key-reminder {
+      position: fixed;
+      bottom: 20px;
+      display: flex;
+      gap: 80px;
+      font-size: 0.9em;
+      color: #666;
+    }
+    .reminder-item { display: flex; align-items: center; gap: 8px; }
+    .dot { width: 16px; height: 16px; border-radius: 50%; display: inline-block; }
+    .dot.red  { background: #e63946; }
+    .dot.blue { background: #457b9d; }
+
+    /* Results screen */
+    #results-screen h2 { margin-bottom: 20px; }
+    .results-table {
+      border-collapse: collapse;
+      margin: 20px auto;
+      font-size: 1.1em;
+      width: 400px;
+      max-width: 90vw;
+    }
+    .results-table th, .results-table td {
+      padding: 12px 20px;
+      border-bottom: 1px solid #444;
+      text-align: center;
+    }
+    .results-table th { color: #a8d8ea; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; }
+    .results-table td { font-size: 1.15em; }
+    .rt-val { font-weight: bold; color: #fff; }
+    .simon-effect {
+      margin-top: 16px;
+      font-size: 1.2em;
+      color: #f4a261;
+      font-weight: bold;
+    }
+    .simon-explain { font-size: 1em; color: #aaa; max-width: 440px; margin-top: 10px; }
+
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 30px;
+      justify-content: center;
+      margin: 24px 0 8px;
+      height: 140px;
+    }
+    .bar-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .bar {
+      width: 80px;
+      border-radius: 6px 6px 0 0;
+      transition: height 1s ease;
+    }
+    .bar.congruent   { background: #57cc99; }
+    .bar.incongruent { background: #f4a261; }
+    .bar-label { font-size: 0.85em; color: #aaa; }
+    .bar-val   { font-size: 1em; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<!-- WELCOME SCREEN -->
+<div id="welcome-screen" class="screen active">
+  <h1>Simon Task</h1>
+  <p>You'll see a coloured circle appear on the <strong>left</strong> or <strong>right</strong> side of the screen.<br><br>
+     Your job is to respond to the <strong>colour</strong> — ignore where it appears.</p>
+  <div class="key-demo">
+    <div class="key-item">
+      <div class="key-circle red"></div>
+      <div class="key-label">F</div>
+      <div class="key-text">Red → F</div>
+    </div>
+    <div class="key-item">
+      <div class="key-circle blue"></div>
+      <div class="key-label">J</div>
+      <div class="key-text">Blue → J</div>
+    </div>
+  </div>
+  <p>Respond as <strong>quickly and accurately</strong> as you can.<br>You'll do 24 trials — takes about 1–2 minutes.</p>
+  <button class="btn" onclick="startTask()">Start →</button>
+</div>
+
+<!-- TRIAL SCREEN -->
+<div id="trial-screen" class="screen">
+  <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+  <div id="trial-counter"></div>
+  <div id="fixation">+</div>
+  <div id="stimulus-area">
+    <div id="stimulus"></div>
+  </div>
+  <div id="feedback-msg"></div>
+  <div id="key-reminder">
+    <div class="reminder-item"><span class="dot red"></span> Red = F</div>
+    <div class="reminder-item"><span class="dot blue"></span> Blue = J</div>
+  </div>
+</div>
+
+<!-- RESULTS SCREEN -->
+<div id="results-screen" class="screen">
+  <h2>Your Results</h2>
+  <p class="small">The <em>Simon effect</em>: responses are typically faster when stimulus position matches the response side.</p>
+
+  <div class="bar-chart">
+    <div class="bar-col">
+      <div class="bar-val" id="cong-val">—</div>
+      <div class="bar congruent" id="cong-bar" style="height:0px"></div>
+      <div class="bar-label">Congruent<br><span style="font-size:0.8em;color:#888">(same side)</span></div>
+    </div>
+    <div class="bar-col">
+      <div class="bar-val" id="incong-val">—</div>
+      <div class="bar incongruent" id="incong-bar" style="height:0px"></div>
+      <div class="bar-label">Incongruent<br><span style="font-size:0.8em;color:#888">(opposite side)</span></div>
+    </div>
+  </div>
+
+  <div class="simon-effect" id="simon-diff"></div>
+  <div class="simon-explain" id="simon-note"></div>
+
+  <table class="results-table">
+    <tr><th>Condition</th><th>Mean RT</th><th>Accuracy</th></tr>
+    <tr><td>Congruent</td><td class="rt-val" id="cong-rt">—</td><td id="cong-acc">—</td></tr>
+    <tr><td>Incongruent</td><td class="rt-val" id="incong-rt">—</td><td id="incong-acc">—</td></tr>
+  </table>
+
+  <button class="btn" onclick="resetTask()">Try Again</button>
+</div>
+
+<script>
+  // ---- Trial generation ----
+  function generateTrials(n) {
+    // colours: red=F(left), blue=J(right)
+    // positions: left, right
+    // congruent: red-left, blue-right
+    // incongruent: red-right, blue-left
+    const types = [
+      { colour: 'red',  position: 'left',  congruent: true  },
+      { colour: 'blue', position: 'right', congruent: true  },
+      { colour: 'red',  position: 'right', congruent: false },
+      { colour: 'blue', position: 'left',  congruent: false },
+    ];
+    let trials = [];
+    for (let i = 0; i < n / 4; i++) trials = trials.concat(types);
+    // shuffle
+    for (let i = trials.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [trials[i], trials[j]] = [trials[j], trials[i]];
+    }
+    return trials;
+  }
+
+  const CORRECT_KEY  = { red: 'f', blue: 'j' };
+  const N_TRIALS = 24;
+  const FIXATION_MS = 600;
+  const STIM_TIMEOUT_MS = 2000;
+  const FEEDBACK_MS = 700;
+  const ITI_MS = 400;
+
+  let trials = [];
+  let currentTrial = 0;
+  let trialStart = 0;
+  let waitingForResponse = false;
+  let results = [];
+  let keyHandler = null;
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function startTask() {
+    trials = generateTrials(N_TRIALS);
+    currentTrial = 0;
+    results = [];
+    showScreen('trial-screen');
+    runTrial();
+  }
+
+  function updateProgress() {
+    const pct = (currentTrial / N_TRIALS) * 100;
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('trial-counter').textContent = currentTrial + ' / ' + N_TRIALS;
+  }
+
+  function runTrial() {
+    if (currentTrial >= N_TRIALS) { showResults(); return; }
+    updateProgress();
+
+    const trial = trials[currentTrial];
+    const stim = document.getElementById('stimulus');
+    const fix  = document.getElementById('fixation');
+    const fbk  = document.getElementById('feedback-msg');
+
+    stim.className = '';
+    stim.style.display = 'none';
+    fbk.textContent = '';
+    fbk.className = '';
+    fix.style.display = 'block';
+    waitingForResponse = false;
+
+    // Fixation
+    setTimeout(() => {
+      fix.style.display = 'none';
+      stim.className = `${trial.position} ${trial.colour}`;
+      stim.style.display = 'block';
+      trialStart = performance.now();
+      waitingForResponse = true;
+
+      // Timeout handler
+      const timeoutId = setTimeout(() => {
+        if (!waitingForResponse) return;
+        waitingForResponse = false;
+        recordResult(trial, null, null);
+        showFeedback('Too slow!', 'slow', () => nextTrial());
+      }, STIM_TIMEOUT_MS);
+
+      // Key handler
+      if (keyHandler) document.removeEventListener('keydown', keyHandler);
+      keyHandler = (e) => {
+        if (!waitingForResponse) return;
+        const key = e.key.toLowerCase();
+        if (key !== 'f' && key !== 'j') return;
+        waitingForResponse = false;
+        clearTimeout(timeoutId);
+        const rt = Math.round(performance.now() - trialStart);
+        const correct = key === CORRECT_KEY[trial.colour];
+        recordResult(trial, rt, correct);
+        document.removeEventListener('keydown', keyHandler);
+        stim.style.display = 'none';
+        if (correct) {
+          showFeedback('✓', 'correct', () => nextTrial());
+        } else {
+          showFeedback('✗  Wrong key', 'wrong', () => nextTrial());
+        }
+      };
+      document.addEventListener('keydown', keyHandler);
+
+    }, FIXATION_MS);
+  }
+
+  function showFeedback(msg, cls, cb) {
+    const fbk = document.getElementById('feedback-msg');
+    fbk.textContent = msg;
+    fbk.className = cls;
+    setTimeout(cb, FEEDBACK_MS);
+  }
+
+  function recordResult(trial, rt, correct) {
+    results.push({ colour: trial.colour, position: trial.position, congruent: trial.congruent, rt, correct });
+  }
+
+  function nextTrial() {
+    const fbk = document.getElementById('feedback-msg');
+    fbk.textContent = '';
+    currentTrial++;
+    setTimeout(runTrial, ITI_MS);
+  }
+
+  function showResults() {
+    if (keyHandler) document.removeEventListener('keydown', keyHandler);
+    updateProgress();
+
+    const cong   = results.filter(r => r.congruent  && r.correct && r.rt !== null);
+    const incong = results.filter(r => !r.congruent && r.correct && r.rt !== null);
+
+    const mean = arr => arr.length ? Math.round(arr.reduce((s,r) => s + r.rt, 0) / arr.length) : null;
+    const acc  = (type) => {
+      const total   = results.filter(r => r.congruent === type).length;
+      const correct = results.filter(r => r.congruent === type && r.correct).length;
+      return total ? Math.round((correct / total) * 100) + '%' : '—';
+    };
+
+    const congRT   = mean(cong);
+    const incongRT = mean(incong);
+
+    document.getElementById('cong-rt').textContent   = congRT   ? congRT   + ' ms' : '—';
+    document.getElementById('incong-rt').textContent = incongRT ? incongRT + ' ms' : '—';
+    document.getElementById('cong-acc').textContent   = acc(true);
+    document.getElementById('incong-acc').textContent = acc(false);
+    document.getElementById('cong-val').textContent   = congRT   ? congRT   + ' ms' : '—';
+    document.getElementById('incong-val').textContent = incongRT ? incongRT + ' ms' : '—';
+
+    // Bar chart (scale: 200ms = 20px, baseline 200ms)
+    if (congRT && incongRT) {
+      const maxRT  = Math.max(congRT, incongRT);
+      const scale  = 120 / maxRT;
+      setTimeout(() => {
+        document.getElementById('cong-bar').style.height   = Math.round(congRT   * scale) + 'px';
+        document.getElementById('incong-bar').style.height = Math.round(incongRT * scale) + 'px';
+      }, 100);
+
+      const diff = incongRT - congRT;
+      const diffEl = document.getElementById('simon-diff');
+      const noteEl = document.getElementById('simon-note');
+      if (diff > 0) {
+        diffEl.textContent = `Simon effect: +${diff} ms`;
+        noteEl.textContent = `Your incongruent trials were ${diff} ms slower — the classic pattern, caused by spatial compatibility conflict.`;
+      } else if (diff < 0) {
+        diffEl.textContent = `Reversed effect: ${diff} ms`;
+        noteEl.textContent = `Interestingly, your congruent trials were slower — this can happen with small sample sizes or strategic responding. Try again!`;
+      } else {
+        diffEl.textContent = 'No Simon effect this time';
+        noteEl.textContent = 'With only 24 trials, noise can mask the effect. Typical studies use 200+ trials.';
+      }
+    }
+
+    showScreen('results-screen');
+  }
+
+  function resetTask() {
+    showScreen('welcome-screen');
+  }
+</script>
+</body>
+</html>
